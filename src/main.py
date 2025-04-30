@@ -1,92 +1,64 @@
 import flet as ft
-from database import Database
-from pprint import pprint
-
+import database
 
 def main(page: ft.Page):
-    # установка заголовка
-    page.title = "Приложение для управления списком дел"
+    page.title = "Мои Фильмы"
+    database.film_db()
 
-    # создание объекта Database для работы с БД
-    database = Database("database.sqlite")
-    # создание таблиц
-    database.create_tables()
-    pprint(database.all_todos())
+    name_film = ft.TextField(label="Название фильма")
+    genre = ft.TextField(label="Жанр")
+    year_of_release = ft.TextField(label="Год выпуска")
 
-    title = ft.Text(
-        value="Список дел на день", size=30, weight=ft.FontWeight.BOLD, italic=True
-    )
+    film_list = ft.Column()
 
-    # функция, которая будет возвращать список Row с задачами из БД
-    def build_rows():
-        rows = []
-        # проход по всем записям из таблицы todos
-        for t in database.all_todos():
-            print(t)
-            # каждую запись отображаем в виде строки Row
-            rows.append(
-                ft.Row(
-                    controls=[
-                        ft.Text(value=t[1], size=20, color=ft.Colors.PINK),  # текст
-                        ft.Text(value=t[2], size=20),  # категория
-                        # кнопка для редактирования задачи
-                        ft.IconButton(
-                            icon=ft.Icons.EDIT_OUTLINED,
-                            icon_color=ft.Colors.BLUE,
-                            icon_size=20,
-                        ),
-                        # кнопка для удаления задачи
-                        ft.IconButton(
-                            icon=ft.Icons.DELETE_OUTLINED,
-                            icon_color=ft.Colors.RED,
-                            icon_size=20,
-                        ),
-                    ]
-                )
+    def add_film(e):
+        database.add_film(name_film.value, genre.value, year_of_release.value)
+
+        name_film.value = ""
+        genre.value = ""
+        year_of_release.value = ""
+
+        load_films()
+        page.update()
+
+    def clear_films(e):
+        database.delete_all_films()
+        load_films()
+
+    def delete_film(film_id):
+        database.delete_film_by_id(film_id)
+        load_films()
+
+    def load_films():
+        film_list.controls.clear()
+        films = database.get_films()
+        for film in films:
+            film_id, name, genre_, year = film
+            film_text = f"ID: {film_id} | name: {name}, genre: {genre_}, release: {year}"
+
+            delete_icon = ft.IconButton(
+                icon=ft.icons.DELETE,
+                icon_color=ft.colors.RED,
+                on_click=lambda e, fid=film_id: delete_film(fid)
             )
-        return rows
 
-    # функция, которая будет вызываться при нажатии кнопки "Добавить"
-    def add_todo(e):
-        print(todo_input.value)
-        # добавляем задачу в БД через вызов метода add_todo
-        database.add_todo(todo_input.value, category_input.value)
+            film_row = ft.Row([
+                ft.Text(film_text, size=20, weight="bold", color=ft.colors.BLACK),
+                delete_icon
+            ])
+            film_list.controls.append(film_row)
+        page.update()
 
-        todo_list_area.controls = build_rows()  # обновляем отображаемый список
-        todo_input.value = ""  # очищаем поле ввода
-        category_input.value = ""
-        todo_input.focus()
-        page.update()  # обновляем страницу, обязательно а то не будет работать
+    load_films()
 
-    # создание текстового поля
-    todo_input = ft.TextField(
-        label="Введите что-нибудь",  # текст подсказки
+    clear_button = ft.ElevatedButton(
+        "Очистить все",
+        on_click=clear_films,
+        color=ft.colors.WHITE,
+        bgcolor=ft.colors.RED
     )
-    category_input = ft.TextField(
-        label="Введите категорию",  # текст подсказки
-    )
+    button = ft.ElevatedButton("Добавить", on_click=add_film)
 
-    # создание кнопки для добавления задачи
-    add_button = ft.ElevatedButton(
-        "Добавить",  # текст на кнопке
-        on_click=add_todo,  # функция, которая будет вызываться при нажатии
-        color=ft.Colors.PINK,  # цвет текста на кнопке
-        bgcolor=ft.Colors.AMBER,  # цвет фона кнопки
-    )
+    page.add(name_film, genre, year_of_release, button, clear_button, film_list)
 
-    form_area = ft.Row(controls=[todo_input, category_input, add_button])
-
-    # создание колонки
-    todo_list_area = ft.Column(
-        expand=True,
-        scroll="always",
-        controls=build_rows(),  # список элементов, которые будут в колонке
-    )  # место, где будет отображаться список
-
-    # добавление элементов на страницу(окно)
-    page.add(
-        title, form_area, todo_list_area
-    )  # от того, в каком порядке они тут добавляются, зависит в каком порядке они отображаются
-
-
-ft.app(main)
+ft.app(target=main)
